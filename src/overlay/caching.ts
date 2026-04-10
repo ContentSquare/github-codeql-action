@@ -1,17 +1,19 @@
 import * as fs from "fs";
 
 import * as actionsCache from "@actions/cache";
+import * as semver from "semver";
 
 import {
   getRequiredInput,
   getWorkflowRunAttempt,
   getWorkflowRunID,
 } from "../actions-util";
-import { getAutomationID } from "../api-client";
+import { getAutomationID, listActionsCaches } from "../api-client";
 import { createCacheKeyHash } from "../caching-utils";
 import { type CodeQL } from "../codeql";
 import { type Config } from "../config-utils";
 import { getCommitOid } from "../git-utils";
+import * as knownLanguageAliases from "../known-language-aliases.json";
 import { Logger, withGroupAsync } from "../logging";
 import {
   CleanupLevel,
@@ -404,7 +406,36 @@ export async function getCacheRestoreKeyPrefix(
   config: Config,
   codeQlVersion: string,
 ): Promise<string> {
-  const languages = [...config.languages].sort().join("_");
+  return `${await getCacheKeyPrefixBase(config)}${codeQlVersion}-`;
+}
+
+/**
+ * Resolves a language name to its canonical form using the static
+ * `known-language-aliases.json` mapping. If the language is not an alias, it is
+ * returned unchanged.
+ */
+function resolveLanguageAlias(language: string): string {
+  const normalized = language.trim().toLowerCase();
+  if (Object.hasOwn(knownLanguageAliases, normalized)) {
+    return knownLanguageAliases[
+      normalized as keyof typeof knownLanguageAliases
+    ];
+  }
+  return normalized;
+}
+
+/**
+ * Computes the cache key prefix for overlay-base databases, excluding the
+ * CodeQL version.
+ */
+async function getCacheKeyPrefixBase(config: Config): Promise<string> {
+  // Resolve language aliases so that e.g. "c++" and "cpp" produce the same
+  // cache key. For configs produced by initConfig the languages are already
+  // canonical, but callers earlier in the pipeline may pass raw user input.
+  const languages = [...config.languages]
+    .map(resolveLanguageAlias)
+    .sort()
+    .join("_");
 
   const cacheKeyComponents = {
     automationID: await getAutomationID(),
@@ -412,17 +443,78 @@ export async function getCacheRestoreKeyPrefix(
   };
   const componentsHash = createCacheKeyHash(cacheKeyComponents);
 
-  // For a cached overlay-base database to be considered compatible for overlay
-  // analysis, all components in the cache restore key must match:
-  //
   // CACHE_PREFIX: distinguishes overlay-base databases from other cache objects
   // CACHE_VERSION: cache format version
   // componentsHash: hash of additional components (see above for details)
   // languages: the languages included in the overlay-base database
-  // codeQlVersion: CodeQL bundle version
   //
-  // Technically we can also include languages and codeQlVersion in the
-  // componentsHash, but including them explicitly in the cache key makes it
-  // easier to debug and understand the cache key structure.
-  return `${CACHE_PREFIX}-${CACHE_VERSION}-${componentsHash}-${languages}-${codeQlVersion}-`;
+  // Technically we can also include languages in the componentsHash, but
+  // including them explicitly in the cache key makes it easier to debug and
+  // understand the cache key structure.
+  return `${CACHE_PREFIX}-${CACHE_VERSION}-${componentsHash}-${languages}-`;
+}
+
+/**
+ * Searches the GitHub Actions cache for overlay-base databases matching the
+ * languages in the given config, and returns all compatible CodeQL versions
+ * found across matching cache entries.
+ *
+ * @param config The configuration object containing the languages to match
+ * @param logger The logger instance
+ * @returns Unique compatible CodeQL versions found in cached overlay-base
+ * databases, sorted from latest to earliest.
+ */
+export async function getCompatibleCodeQlVersionsForOverlayBaseDatabases(
+  config: Config,
+  logger: Logger,
+): Promise<string[]> {
+  const cacheKeyPrefix = await getCacheKeyPrefixBase(config);
+
+  logger.debug(
+    `Searching for overlay-base databases in Actions cache with ` +
+      `prefix ${cacheKeyPrefix}`,
+  );
+
+  const caches = await listActionsCaches(cacheKeyPrefix);
+
+  if (caches.length === 0) {
+    logger.info("No overlay-base databases found in Actions cache.");
+    return [];
+  }
+
+  logger.info(
+    `Found ${caches.length} overlay-base database cache ` +
+      `${caches.length === 1 ? "entry" : "entries"}.`,
+  );
+
+  // Parse CodeQL versions from cache keys.
+  // After the prefix, the remaining key format starts with
+  // `${codeQlVersion}-`.
+  const versionRegex = /^([\d.]+)-/;
+  const versions = new Set<string>();
+
+  for (const cache of caches) {
+    if (!cache.key) continue;
+    const suffix = cache.key.substring(cacheKeyPrefix.length);
+    const match = suffix.match(versionRegex);
+    if (match && semver.valid(match[1])) {
+      versions.add(match[1]);
+    }
+  }
+
+  if (versions.size === 0) {
+    logger.info(
+      "Could not parse any CodeQL versions from overlay-base database " +
+        "cache keys.",
+    );
+    return [];
+  }
+
+  const compatibleVersions = [...versions].sort(semver.rcompare);
+
+  logger.info(
+    `Compatible CodeQL versions in overlay-base database caches: ${compatibleVersions.join(", ")}`,
+  );
+
+  return compatibleVersions;
 }
