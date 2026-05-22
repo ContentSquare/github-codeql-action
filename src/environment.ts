@@ -1,3 +1,5 @@
+import * as core from "@actions/core";
+
 /**
  * Environment variables used by the CodeQL Action.
  *
@@ -162,4 +164,15 @@ export enum EnvVar {
  */
 export function isInTestMode(): boolean {
   return process.env[EnvVar.TEST_MODE] === "true";
+}
+
+/**
+ * Wrapper around `core.exportVariable` which does nothing when in test mode.
+ * This is important, because otherwise `core.exportVariable` sets environment
+ * variables for other steps in a workflow when we run unit tests in CI.
+ */
+export function exportVariable(name: string, val: any): void {
+  if (!isInTestMode()) {
+    core.exportVariable(name, val);
+  }
 }
