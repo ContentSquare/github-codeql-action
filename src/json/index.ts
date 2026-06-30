@@ -66,6 +66,12 @@ export const number = {
   required: true,
 } as const satisfies Validator<number>;
 
+/** A validator for object fields in schemas. */
+export const object = {
+  validate: isObject,
+  required: true,
+} as const satisfies Validator<UnvalidatedObject<unknown>>;
+
 /** Transforms a validator to be optional. */
 export function optional<T>(validator: Validator<T>) {
   return {
