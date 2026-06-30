@@ -30,9 +30,8 @@ export function isString(value: unknown): value is string {
   return typeof value === "string";
 }
 
-/** Asserts that `value` is a number. */
 export function isNumber(value: unknown): value is number {
-  return typeof value === "number";
+  return typeof value === "number" && Number.isFinite(value);
 }
 
 /** Asserts that `value` is either a string or undefined. */
