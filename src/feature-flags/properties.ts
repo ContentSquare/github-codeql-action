@@ -79,6 +79,17 @@ const stringProperty = {
   parse: parseStringRepositoryProperty,
 };
 
+/** Determines whether a value from the API is a non-empty string or not. */
+function isNonEmptyString(value: RepositoryPropertyValue): value is string {
+  return isString(value) && value.trim().length > 0;
+}
+
+/** A repository property that we expect to contain a non-empty string value. */
+const nonEmptyStringProperty = {
+  ...stringProperty,
+  validate: isNonEmptyString,
+};
+
 /** A repository property that we expect to contain a boolean value. */
 const booleanProperty = {
   // The value from the API should come as a string, which we then parse into a boolean.
@@ -90,7 +101,7 @@ const booleanProperty = {
 const repositoryPropertyParsers: {
   [K in RepositoryPropertyName]: PropertyInfo<K>;
 } = {
-  [RepositoryPropertyName.CONFIG_FILE]: stringProperty,
+  [RepositoryPropertyName.CONFIG_FILE]: nonEmptyStringProperty,
   [RepositoryPropertyName.DISABLE_OVERLAY]: booleanProperty,
   [RepositoryPropertyName.EXTRA_QUERIES]: stringProperty,
   [RepositoryPropertyName.FILE_COVERAGE_ON_PRS]: booleanProperty,
