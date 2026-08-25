@@ -1,0 +1,24 @@
+{
+  "name": "changetool",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Validates change-notes and merges them into CHANGELOG.md",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "tsx index.ts",
+    "test": "npm run transpile && ava --verbose",
+    "transpile": "tsc --build tsconfig.json",
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@ava/typescript": "^7.0.0",
+    "@types/node": "^26.2.0",
+    "ava": "^8.0.1",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "mdast-util-from-markdown": "^2.0.3"
+  }
+}
