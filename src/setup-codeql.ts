@@ -479,6 +479,7 @@ export async function getCodeQLSource(
       { env: getEnv(), features, logger },
       rawLanguages,
       variant,
+      tarSupportsZstd,
     );
     toolsInput = bundle.url;
   }
@@ -1160,13 +1161,12 @@ async function getLatestNightlyBundle(
   action: ActionState<["Logger", "ReadOnlyEnv", "FeatureFlags"]>,
   rawLanguages: string[] | undefined,
   variant: util.GitHubVariant,
+  tarSupportsZstd: boolean,
 ): Promise<CodeQLBundle> {
-  const { logger } = action;
-  const zstdAvailability = await tar.isZstdAvailable(logger);
   // The nightly is guaranteed to have a zstd bundle
   const compressionMethod = (await useZstdBundle(
     CODEQL_VERSION_ZSTD_BUNDLE,
-    zstdAvailability.available,
+    tarSupportsZstd,
   ))
     ? "zstd"
     : "gzip";
