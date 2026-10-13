@@ -36,6 +36,7 @@ import {
   Feature,
   FeatureEnablement,
 } from "./feature-flags";
+import { GITHUB_DOTCOM_URL } from "./github";
 import { BuiltInLanguage } from "./languages";
 import { Logger } from "./logging";
 import { getCodeQlVersionsForOverlayBaseDatabases } from "./overlay/caching";
@@ -100,7 +101,7 @@ async function getCodeQLBundleDownloadURL(
     // This GitHub instance, and the canonical Action.
     [apiDetails.url, CODEQL_DEFAULT_ACTION_REPOSITORY],
     // GitHub.com, and the canonical Action.
-    [util.GITHUB_DOTCOM_URL, CODEQL_DEFAULT_ACTION_REPOSITORY],
+    [GITHUB_DOTCOM_URL, CODEQL_DEFAULT_ACTION_REPOSITORY],
   ];
   // We now filter out any duplicates.
   // Duplicates will happen either because the GitHub instance is GitHub.com, or because the Action is not a fork.
@@ -113,7 +114,7 @@ async function getCodeQLBundleDownloadURL(
     const [apiURL, repository] = downloadSource;
     // If we've reached the final case, short-circuit the API check since we know the bundle exists and is public.
     if (
-      apiURL === util.GITHUB_DOTCOM_URL &&
+      apiURL === GITHUB_DOTCOM_URL &&
       repository === CODEQL_DEFAULT_ACTION_REPOSITORY
     ) {
       break;
