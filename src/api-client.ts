@@ -193,8 +193,11 @@ export function getDotcomApiDetails(env: ReadOnlyEnv): GitHubApiDetails {
   }
 }
 
-export function getApiClient(env: ReadOnlyEnv = getEnv()) {
-  return createApiClientWithDetails(getApiDetails(env));
+export function getApiClient(
+  env: ReadOnlyEnv = getEnv(),
+  apiDetails?: GitHubApiDetails,
+) {
+  return createApiClientWithDetails(apiDetails ?? getApiDetails(env));
 }
 
 export function getApiClientWithExternalAuth(
