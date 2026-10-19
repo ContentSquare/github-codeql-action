@@ -1,6 +1,6 @@
 import * as core from "@actions/core";
 
-import { ActionsEnv, getActionsEnv } from "./actions-util";
+import { ActionsEnv, getActionsEnv, restoreInputs } from "./actions-util";
 import type { ApiClient } from "./api-client";
 import { Env, ReadOnlyEnv } from "./environment";
 import type { FeatureEnablement } from "./feature-flags";
@@ -162,6 +162,19 @@ export interface Action {
   transformTelemetryError?: (error: Error) => string;
 }
 
+/** Decides if {@link name} refers to a post-action. */
+function isPostAction(name: ActionName) {
+  switch (name) {
+    case ActionName.AnalyzePost:
+    case ActionName.InitPost:
+    case ActionName.StartProxyPost:
+    case ActionName.UploadSarifPost:
+      return true;
+  }
+
+  return false;
+}
+
 /** A generic entry point that sets up the basic environment for the `action` and runs it. */
 export async function runInActions(action: Action) {
   const startedAt = new Date();
@@ -179,6 +192,11 @@ export async function runInActions(action: Action) {
       env,
       actions: actionsEnv,
     };
+
+    // If this is a post-action, restore inputs from the main action.
+    if (isPostAction(action.name)) {
+      restoreInputs(logger);
+    }
 
     // Create a unique identifier for this run.
     getJobUUID(actionState);
